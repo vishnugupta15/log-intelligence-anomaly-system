@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, DateTime
+from datetime import datetime
 from database import Base
 
 class Log(Base):
@@ -8,3 +9,4 @@ class Log(Base):
     service = Column(String)
     level = Column(String)
     message = Column(String)
+    timestamp = Column(DateTime, default=datetime.utcnow)

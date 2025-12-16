@@ -4,25 +4,25 @@ from pydantic import BaseModel
 from database import engine, SessionLocal, Base
 from models import Log
 from typing import List
+from typing import Optional
+from datetime import datetime
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
 
 class LogRequest(BaseModel):
     service: str
     level: str
     message: str
 
+
 @app.post("/logs")
 def ingest_log(log: LogRequest):
     db = SessionLocal()
     try:
-        db_log = Log(
-            service=log.service,
-            level=log.level,
-            message=log.message
-        )
+        db_log = Log(service=log.service, level=log.level, message=log.message)
         db.add(db_log)
         db.commit()
     except Exception as e:
@@ -33,20 +33,63 @@ def ingest_log(log: LogRequest):
 
     return {"status": "saved"}
 
+@app.post("/logs/bulk")
+def ingest_logs_bulk(logs: List[LogRequest]):
+    db = SessionLocal()
+    try:
+        db_logs = [
+            Log(
+                service=log.service,
+                level=log.level,
+                message=log.message
+            )
+            for log in logs
+        ]
+
+        db.add_all(db_logs)
+        db.commit()
+
+        return {
+            "status": "saved",
+            "count": len(db_logs)
+        }
+
+    except Exception as e:
+        db.rollback()
+        raise e
+
+    finally:
+        db.close()
+
 
 @app.get("/logs")
-def get_logs(limit: int = 10):
+def get_logs(
+    limit: int = 10,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+):
     db = SessionLocal()
-    logs = db.query(Log).order_by(Log.id.desc()).limit(limit).all()
+    query = db.query(Log)
+
+    if start_time:
+        query = query.filter(Log.timestamp >= start_time)
+
+    if end_time:
+        query = query.filter(Log.timestamp <= end_time)
+
+    logs = query.order_by(Log.id.desc()).limit(limit).all()
     db.close()
 
     result = []
     for log in logs:
-        result.append({
-            "id": log.id,
-            "service": log.service,
-            "level": log.level,
-            "message": log.message
-        })
+        result.append(
+            {
+                "id": log.id,
+                "service": log.service,
+                "level": log.level,
+                "message": log.message,
+                "timestamp": log.timestamp,
+            }
+        )
 
     return result
