@@ -35,6 +35,9 @@ def ingest_log(log: LogRequest):
 
 @app.post("/logs/bulk")
 def ingest_logs_bulk(logs: List[LogRequest]):
+    if not logs:
+        return {"status": "no logs received", "count": 0}
+
     db = SessionLocal()
     try:
         db_logs = [
