@@ -37,7 +37,7 @@ def ingest_log(log: LogRequest):
 @app.get("/logs")
 def get_logs(limit: int = 10):
     db = SessionLocal()
-    logs = db.query(Log).limit(limit).all()
+    logs = db.query(Log).order_by(Log.id.desc()).limit(limit).all()
     db.close()
 
     result = []
